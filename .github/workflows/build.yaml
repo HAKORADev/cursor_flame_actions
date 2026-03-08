@@ -24,7 +24,8 @@ jobs:
     - name: Build
       shell: cmd
       run: |
-        cl /O2 /EHsc /std:c++17 /Fe:Cursor_Flame.exe cursor_flame.cpp user32.lib gdi32.lib winmm.lib
+        rc resource.rc
+        cl /O2 /EHsc /std:c++17 /Fe:Cursor_Flame.exe cursor_flame.cpp resource.res user32.lib gdi32.lib winmm.lib
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4

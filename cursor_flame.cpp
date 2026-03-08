@@ -806,9 +806,11 @@ private:
 static CursorFlame* g_flame  = nullptr;
 static HWND         g_hwnd   = nullptr;
 static HHOOK        g_hook   = nullptr;
+static HHOOK        g_kbhook = nullptr;
 static HBITMAP      g_dib    = nullptr;
 static void*        g_pixels = nullptr;
 static HDC          g_memDC  = nullptr;
+static bool         g_enabled = true;
 
 static void updateWindow() {
     if (!g_hwnd||!g_memDC||!g_pixels) return;
@@ -819,7 +821,27 @@ static void updateWindow() {
     UpdateLayeredWindow(g_hwnd,NULL,&ptDst,&szWin,g_memDC,&ptSrc,0,&bf,ULW_ALPHA);
 }
 
+static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (nCode == HC_ACTION && wParam == WM_KEYDOWN) {
+        KBDLLHOOKSTRUCT* kb = (KBDLLHOOKSTRUCT*)lParam;
+        bool ctrl = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+        bool alt  = (GetAsyncKeyState(VK_MENU) & 0x8000) != 0;
+        
+        if (ctrl && alt && kb->vkCode == 'E') {
+            g_enabled = !g_enabled;
+            if (g_enabled) {
+                ShowWindow(g_hwnd, SW_SHOWNOACTIVATE);
+            } else {
+                ShowWindow(g_hwnd, SW_HIDE);
+            }
+            return 1;
+        }
+    }
+    return CallNextHookEx(NULL, nCode, wParam, lParam);
+}
+
 static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (!g_enabled) return CallNextHookEx(NULL, nCode, wParam, lParam);
     if (nCode==HC_ACTION && g_flame) {
         MSLLHOOKSTRUCT* m=(MSLLHOOKSTRUCT*)lParam;
         float x=(float)m->pt.x, y=(float)m->pt.y;
@@ -841,6 +863,7 @@ static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lPara
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     switch (msg) {
         case WM_TIMER:
+            if (!g_enabled) return 0;
             switch (wp) {
                 case 1:
                     if (g_flame) { g_flame->update_tick(); g_flame->render(); updateWindow(); }
@@ -898,6 +921,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
     timeBeginPeriod(1);
 
     g_hook=SetWindowsHookExW(WH_MOUSE_LL,LowLevelMouseProc,NULL,0);
+    g_kbhook=SetWindowsHookExW(WH_KEYBOARD_LL,LowLevelKeyboardProc,NULL,0);
 
     SetTimer(g_hwnd,1,16,NULL);
     SetTimer(g_hwnd,2,8, NULL);
@@ -911,6 +935,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
 
     timeEndPeriod(1);
     UnhookWindowsHookEx(g_hook);
+    UnhookWindowsHookEx(g_kbhook);
     KillTimer(g_hwnd,1); KillTimer(g_hwnd,2); KillTimer(g_hwnd,3);
     DeleteDC(g_memDC); DeleteObject(g_dib);
     return 0;
