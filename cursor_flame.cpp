@@ -1,4 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <mmsystem.h>
 #include <cmath>
@@ -569,7 +570,7 @@ private:
     }
 
     float _edge_fade(float x, float y) {
-        float d = std::min({x, (float)screen_width-x, y, (float)screen_height-y});
+        float d = std::min(std::min(x, (float)screen_width-x), std::min(y, (float)screen_height-y));
         if (d >= Cfg::EDGE_MARGIN) return 1.f;
         return powf(d / Cfg::EDGE_MARGIN, Cfg::FADE_POWER);
     }
