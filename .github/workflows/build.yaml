@@ -1,0 +1,42 @@
+name: Build Cursor Flame
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build Windows Executable
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Build
+      shell: cmd
+      run: |
+        cl /O2 /EHsc /std:c++17 /Fe:Cursor_Flame.exe cursor_flame.cpp user32.lib gdi32.lib winmm.lib
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Cursor_Flame-Windows
+        path: Cursor_Flame.exe
+
+    - name: Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: Cursor_Flame.exe
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
